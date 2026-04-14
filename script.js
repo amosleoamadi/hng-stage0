@@ -73,13 +73,14 @@ document.addEventListener("DOMContentLoaded", () => {
     displayPriority.textContent = todoData.priority;
     card.setAttribute("data-priority", todoData.priority);
 
-    // Due Date
+    // Due Date - Make sure it updates the display
     const dateObj = new Date(todoData.dueDate);
-    displayDueDate.textContent = dateObj.toLocaleDateString("en-US", {
+    const formattedDate = dateObj.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
     });
+    displayDueDate.textContent = formattedDate;
     displayDueDate.setAttribute("datetime", todoData.dueDate);
 
     // Status Sync Logic
@@ -159,9 +160,15 @@ document.addEventListener("DOMContentLoaded", () => {
       inputTitle.value = todoData.title;
       inputDesc.value = todoData.description;
       inputPriority.value = todoData.priority;
+
       // Format date for datetime-local input
       const dateForInput = new Date(todoData.dueDate);
-      const formattedDate = dateForInput.toISOString().slice(0, 16);
+      const year = dateForInput.getFullYear();
+      const month = String(dateForInput.getMonth() + 1).padStart(2, "0");
+      const day = String(dateForInput.getDate()).padStart(2, "0");
+      const hours = String(dateForInput.getHours()).padStart(2, "0");
+      const minutes = String(dateForInput.getMinutes()).padStart(2, "0");
+      const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}`;
       inputDate.value = formattedDate;
 
       viewMode.classList.add("hidden");
@@ -181,9 +188,12 @@ document.addEventListener("DOMContentLoaded", () => {
     todoData.title = inputTitle.value;
     todoData.description = inputDesc.value;
     todoData.priority = inputPriority.value;
-    todoData.dueDate = new Date(inputDate.value).toISOString();
 
-    render();
+    // Update the due date with the new value from the form
+    const newDate = new Date(inputDate.value);
+    todoData.dueDate = newDate.toISOString();
+
+    render(); // This will update the display with the new date
     editForm.classList.add("hidden");
     viewMode.classList.remove("hidden");
   });
