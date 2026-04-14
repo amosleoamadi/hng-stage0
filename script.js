@@ -1,101 +1,219 @@
-// Configuration: Using the specific date from the prompt
-const DUE_DATE = new Date("2026-03-01T18:00:00Z");
-const UPDATE_INTERVAL = 60000;
+document.addEventListener("DOMContentLoaded", () => {
+  // --- State Management ---
+  let todoData = {
+    title: "Complete project documentation",
+    description:
+      "Write comprehensive README and API docs for the entire project. This includes setup instructions, endpoint details, and deployment guidelines.",
+    priority: "High",
+    dueDate: "2026-03-01T18:00:00",
+    status: "In Progress",
+    isExpanded: false,
+  };
 
-// DOM Elements
-const elements = {
-  card: document.querySelector('[data-testid="test-todo-card"]'),
-  checkbox: document.querySelector('[data-testid="test-todo-complete-toggle"]'),
-  title: document.querySelector('[data-testid="test-todo-title"]'),
-  status: document.querySelector('[data-testid="test-todo-status"]'),
-  timeRemaining: document.querySelector(
+  // --- DOM Elements ---
+  const card = document.querySelector('[data-testid="test-todo-card"]');
+  const viewMode = document.getElementById("todo-view-mode");
+  const editForm = document.getElementById("todo-edit-form");
+
+  // View Elements
+  const displayTitle = document.querySelector(
+    '[data-testid="test-todo-title"]',
+  );
+  const displayDesc = document.querySelector(
+    '[data-testid="test-todo-description"]',
+  );
+  const displayPriority = document.querySelector(
+    '[data-testid="test-todo-priority"]',
+  );
+  const displayDueDate = document.querySelector(
+    '[data-testid="test-todo-due-date"]',
+  );
+  const displayStatus = document.querySelector(
+    '[data-testid="test-todo-status"]',
+  );
+  const statusControl = document.querySelector(
+    '[data-testid="test-todo-status-control"]',
+  );
+  const checkbox = document.querySelector(
+    '[data-testid="test-todo-complete-toggle"]',
+  );
+  const timeRemaining = document.querySelector(
     '[data-testid="test-todo-time-remaining"]',
-  ),
-  editBtn: document.querySelector('[data-testid="test-todo-edit-button"]'),
-  deleteBtn: document.querySelector('[data-testid="test-todo-delete-button"]'),
-};
+  );
+  const overdueIndicator = document.querySelector(
+    '[data-testid="test-todo-overdue-indicator"]',
+  );
+  const expandToggle = document.querySelector(
+    '[data-testid="test-todo-expand-toggle"]',
+  );
+  const collapsSection = document.querySelector(
+    '[data-testid="test-todo-collapsible-section"]',
+  );
 
-/**
- * Calculates time remaining based on the specific strings required by the prompt:
- * "Due in 3 days", "Due tomorrow", "Overdue by 2 hours", "Due now!"
- */
-function calculateTimeRemaining() {
-  const now = new Date();
-  const diff = DUE_DATE - now;
-  const absDiff = Math.abs(diff);
+  // Form Elements
+  const inputTitle = document.querySelector(
+    '[data-testid="test-todo-edit-title-input"]',
+  );
+  const inputDesc = document.querySelector(
+    '[data-testid="test-todo-edit-description-input"]',
+  );
+  const inputPriority = document.querySelector(
+    '[data-testid="test-todo-edit-priority-select"]',
+  );
+  const inputDate = document.querySelector(
+    '[data-testid="test-todo-edit-due-date-input"]',
+  );
 
-  const mins = Math.floor(absDiff / (1000 * 60));
-  const hours = Math.floor(absDiff / (1000 * 60 * 60));
-  const days = Math.floor(absDiff / (1000 * 60 * 60 * 24));
+  // --- Logic Functions ---
 
-  // 1. Future Dates
-  if (diff > 0) {
-    if (days > 1) return `Due in ${days} days`;
-    if (days === 1) return "Due tomorrow";
-    if (hours >= 1) return `Due in ${hours} hours`;
-    if (mins > 0) return `Due in ${mins} minutes`;
-    return "Due now!";
-  }
+  function render() {
+    // Text Content
+    displayTitle.textContent = todoData.title;
+    displayDesc.textContent = todoData.description;
+    displayPriority.textContent = todoData.priority;
+    card.setAttribute("data-priority", todoData.priority);
 
-  // 2. Past Dates (Overdue)
-  if (days >= 1) return `Overdue by ${days} day${days > 1 ? "s" : ""}`;
-  if (hours >= 1) return `Overdue by ${hours} hour${hours > 1 ? "s" : ""}`;
-  return "Overdue now!";
-}
-
-function updateUI() {
-  if (elements.timeRemaining) {
-    elements.timeRemaining.textContent = calculateTimeRemaining();
-  }
-}
-
-function handleToggle() {
-  const isChecked = elements.checkbox.checked;
-
-  if (isChecked) {
-    elements.status.textContent = "Done";
-    // Apply visual strike-through via CSS class or direct style as per prompt
-    if (elements.title) elements.title.style.textDecoration = "line-through";
-    elements.card.classList.add("completed");
-  } else {
-    elements.status.textContent = "In Progress";
-    if (elements.title) elements.title.style.textDecoration = "none";
-    elements.card.classList.remove("completed");
-  }
-
-  console.log("Status updated to:", elements.status.textContent);
-}
-
-function init() {
-  // Set initial text
-  updateUI();
-
-  // Event Listeners
-  if (elements.checkbox) {
-    elements.checkbox.addEventListener("change", handleToggle);
-  }
-
-  if (elements.editBtn) {
-    elements.editBtn.addEventListener("click", () => {
-      console.log("edit clicked");
+    // Due Date
+    const dateObj = new Date(todoData.dueDate);
+    displayDueDate.textContent = dateObj.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     });
+    displayDueDate.setAttribute("datetime", todoData.dueDate);
+
+    // Status Sync Logic
+    statusControl.value = todoData.status;
+    displayStatus.textContent = todoData.status;
+    checkbox.checked = todoData.status === "Done";
+
+    if (todoData.status === "Done") {
+      card.classList.add("completed");
+      displayTitle.style.textDecoration = "line-through";
+    } else {
+      card.classList.remove("completed");
+      displayTitle.style.textDecoration = "none";
+    }
+
+    updateTimeLogic();
+    checkDescriptionLength();
   }
 
-  if (elements.deleteBtn) {
-    elements.deleteBtn.addEventListener("click", () => {
-      alert("Delete clicked");
-      // Optional: Visual removal
-      // elements.card.remove();
+  function updateTimeLogic() {
+    if (todoData.status === "Done") {
+      timeRemaining.textContent = "Completed";
+      card.classList.remove("overdue");
+      overdueIndicator.classList.add("hidden");
+      return;
+    }
+
+    const now = new Date();
+    const due = new Date(todoData.dueDate);
+    const diff = due - now;
+    const absDiff = Math.abs(diff);
+
+    const days = Math.floor(absDiff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((absDiff / (1000 * 60 * 60)) % 24);
+    const mins = Math.floor((absDiff / (1000 * 60)) % 60);
+
+    if (diff < 0) {
+      // Overdue
+      card.classList.add("overdue");
+      overdueIndicator.classList.remove("hidden");
+      if (days > 0) {
+        timeRemaining.textContent = `Overdue by ${days}d ${hours}h ${mins}m`;
+      } else if (hours > 0) {
+        timeRemaining.textContent = `Overdue by ${hours}h ${mins}m`;
+      } else {
+        timeRemaining.textContent = `Overdue by ${mins}m`;
+      }
+    } else {
+      // Future
+      card.classList.remove("overdue");
+      overdueIndicator.classList.add("hidden");
+      if (days > 0) {
+        timeRemaining.textContent = `Due in ${days}d ${hours}h ${mins}m`;
+      } else if (hours > 0) {
+        timeRemaining.textContent = `Due in ${hours}h ${mins}m`;
+      } else {
+        timeRemaining.textContent = `Due in ${mins}m`;
+      }
+    }
+  }
+
+  function checkDescriptionLength() {
+    // Show/hide expand button based on text length
+    if (todoData.description.length < 100) {
+      expandToggle.classList.add("hidden");
+    } else {
+      expandToggle.classList.remove("hidden");
+    }
+  }
+
+  // --- Interaction Events ---
+
+  // Edit Mode Toggle
+  document
+    .querySelector('[data-testid="test-todo-edit-button"]')
+    .addEventListener("click", () => {
+      inputTitle.value = todoData.title;
+      inputDesc.value = todoData.description;
+      inputPriority.value = todoData.priority;
+      // Format date for datetime-local input
+      const dateForInput = new Date(todoData.dueDate);
+      const formattedDate = dateForInput.toISOString().slice(0, 16);
+      inputDate.value = formattedDate;
+
+      viewMode.classList.add("hidden");
+      editForm.classList.remove("hidden");
+      inputTitle.focus();
     });
-  }
 
-  // Live update
-  setInterval(updateUI, UPDATE_INTERVAL);
-}
+  document
+    .querySelector('[data-testid="test-todo-cancel-button"]')
+    .addEventListener("click", () => {
+      editForm.classList.add("hidden");
+      viewMode.classList.remove("hidden");
+    });
 
-// Initialize
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init);
-} else {
-  init();
-}
+  editForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    todoData.title = inputTitle.value;
+    todoData.description = inputDesc.value;
+    todoData.priority = inputPriority.value;
+    todoData.dueDate = new Date(inputDate.value).toISOString();
+
+    render();
+    editForm.classList.add("hidden");
+    viewMode.classList.remove("hidden");
+  });
+
+  // Status Control Sync
+  statusControl.addEventListener("change", (e) => {
+    todoData.status = e.target.value;
+    render();
+  });
+
+  checkbox.addEventListener("change", (e) => {
+    todoData.status = e.target.checked ? "Done" : "Pending";
+    render();
+  });
+
+  // Expand Toggle
+  expandToggle.addEventListener("click", () => {
+    const isExpanded = collapsSection.classList.toggle("expanded");
+    expandToggle.setAttribute("aria-expanded", isExpanded);
+    expandToggle.textContent = isExpanded ? "Show Less" : "Show More";
+  });
+
+  // Delete
+  document
+    .querySelector('[data-testid="test-todo-delete-button"]')
+    .addEventListener("click", () => {
+      if (confirm("Delete this task?")) card.remove();
+    });
+
+  // Initial Start
+  render();
+  setInterval(updateTimeLogic, 30000); // Update time every 30s
+});
